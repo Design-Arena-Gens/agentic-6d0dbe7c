@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الدودة</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            gap: 30px;
+        }
+
+        .score, .high-score {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        canvas {
+            border: 4px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            background: #1a1a2e;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            display: block;
+            margin: 0 auto;
+        }
+
+        .controls {
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid white;
+            color: white;
+            padding: 12px 30px;
+            margin: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .game-over {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ff6b6b;
+            z-index: 1000;
+        }
+
+        .game-over.show {
+            display: block;
+        }
+
+        .game-over h2 {
+            color: #ff6b6b;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .mobile-controls {
+            display: none;
+            margin-top: 20px;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .mobile-btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid white;
+            border-radius: 15px;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .mobile-btn:active {
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: grid;
+            }
+
+            canvas {
+                max-width: 90vw;
+                height: auto;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐍 لعبة الدودة 🐍</h1>
+
+        <div class="game-info">
+            <div class="score">النقاط: <span id="score">0</span></div>
+            <div class="high-score">أعلى نقاط: <span id="highScore">0</span></div>
+        </div>
+
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+        <div class="controls">
+            <div>استخدم الأسهم للتحكم ⬆️ ⬇️ ⬅️ ➡️</div>
+            <button class="btn" onclick="startGame()">ابدأ اللعبة</button>
+            <button class="btn" onclick="pauseGame()">إيقاف مؤقت</button>
+        </div>
+
+        <div class="mobile-controls">
+            <div></div>
+            <div class="mobile-btn" onclick="changeDirection('up')">⬆️</div>
+            <div></div>
+            <div class="mobile-btn" onclick="changeDirection('right')">➡️</div>
+            <div></div>
+            <div class="mobile-btn" onclick="changeDirection('left')">⬅️</div>
+            <div></div>
+            <div class="mobile-btn" onclick="changeDirection('down')">⬇️</div>
+            <div></div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h2>انتهت اللعبة!</h2>
+        <p style="font-size: 1.5em; margin: 20px 0;">النقاط النهائية: <span id="finalScore">0</span></p>
+        <button class="btn" onclick="restartGame()">العب مرة أخرى</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('highScore');
+        const gameOverDiv = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [{x: 10, y: 10}];
+        let dx = 0;
+        let dy = 0;
+        let foodX = 15;
+        let foodY = 15;
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let gameLoop;
+        let isGameRunning = false;
+        let isPaused = false;
+        let nextDirection = null;
+
+        highScoreElement.textContent = highScore;
+
+        function drawGame() {
+            if (isPaused) return;
+
+            // Update direction
+            if (nextDirection) {
+                const [newDx, newDy] = nextDirection;
+                // Prevent reversing direction
+                if (!(dx === -newDx && dy === -newDy) || snake.length === 1) {
+                    dx = newDx;
+                    dy = newDy;
+                }
+                nextDirection = null;
+            }
+
+            // Move snake
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+
+            // Check wall collision
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                endGame();
+                return;
+            }
+
+            // Check self collision
+            for (let segment of snake) {
+                if (head.x === segment.x && head.y === segment.y) {
+                    endGame();
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // Check food collision
+            if (head.x === foodX && head.y === foodY) {
+                score += 10;
+                scoreElement.textContent = score;
+
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreElement.textContent = highScore;
+                    localStorage.setItem('snakeHighScore', highScore);
+                }
+
+                placeFood();
+            } else {
+                snake.pop();
+            }
+
+            // Clear canvas
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+
+            // Draw food
+            ctx.fillStyle = '#ff6b6b';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#ff6b6b';
+            ctx.beginPath();
+            ctx.arc(
+                foodX * gridSize + gridSize / 2,
+                foodY * gridSize + gridSize / 2,
+                gridSize / 2 - 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Draw snake
+            snake.forEach((segment, index) => {
+                const gradient = ctx.createRadialGradient(
+                    segment.x * gridSize + gridSize / 2,
+                    segment.y * gridSize + gridSize / 2,
+                    0,
+                    segment.x * gridSize + gridSize / 2,
+                    segment.y * gridSize + gridSize / 2,
+                    gridSize / 2
+                );
+
+                if (index === 0) {
+                    gradient.addColorStop(0, '#4ecca3');
+                    gradient.addColorStop(1, '#2d9e78');
+                } else {
+                    gradient.addColorStop(0, '#45b993');
+                    gradient.addColorStop(1, '#238562');
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(
+                    segment.x * gridSize + 1,
+                    segment.y * gridSize + 1,
+                    gridSize - 2,
+                    gridSize - 2
+                );
+
+                // Draw eyes on head
+                if (index === 0) {
+                    ctx.fillStyle = 'white';
+                    const eyeSize = 4;
+                    const eyeOffset = 6;
+
+                    if (dx === 1) { // Moving right
+                        ctx.fillRect(segment.x * gridSize + gridSize - eyeOffset, segment.y * gridSize + 4, eyeSize, eyeSize);
+                        ctx.fillRect(segment.x * gridSize + gridSize - eyeOffset, segment.y * gridSize + gridSize - 8, eyeSize, eyeSize);
+                    } else if (dx === -1) { // Moving left
+                        ctx.fillRect(segment.x * gridSize + 2, segment.y * gridSize + 4, eyeSize, eyeSize);
+                        ctx.fillRect(segment.x * gridSize + 2, segment.y * gridSize + gridSize - 8, eyeSize, eyeSize);
+                    } else if (dy === 1) { // Moving down
+                        ctx.fillRect(segment.x * gridSize + 4, segment.y * gridSize + gridSize - eyeOffset, eyeSize, eyeSize);
+                        ctx.fillRect(segment.x * gridSize + gridSize - 8, segment.y * gridSize + gridSize - eyeOffset, eyeSize, eyeSize);
+                    } else if (dy === -1) { // Moving up
+                        ctx.fillRect(segment.x * gridSize + 4, segment.y * gridSize + 2, eyeSize, eyeSize);
+                        ctx.fillRect(segment.x * gridSize + gridSize - 8, segment.y * gridSize + 2, eyeSize, eyeSize);
+                    }
+                }
+            });
+        }
+
+        function placeFood() {
+            do {
+                foodX = Math.floor(Math.random() * tileCount);
+                foodY = Math.floor(Math.random() * tileCount);
+            } while (snake.some(segment => segment.x === foodX && segment.y === foodY));
+        }
+
+        function startGame() {
+            if (isGameRunning) return;
+
+            snake = [{x: 10, y: 10}];
+            dx = 1;
+            dy = 0;
+            nextDirection = null;
+            score = 0;
+            scoreElement.textContent = score;
+            placeFood();
+            isGameRunning = true;
+            isPaused = false;
+            gameOverDiv.classList.remove('show');
+
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(drawGame, 100);
+        }
+
+        function pauseGame() {
+            isPaused = !isPaused;
+        }
+
+        function endGame() {
+            isGameRunning = false;
+            clearInterval(gameLoop);
+            finalScoreElement.textContent = score;
+            gameOverDiv.classList.add('show');
+        }
+
+        function restartGame() {
+            startGame();
+        }
+
+        function changeDirection(direction) {
+            const directions = {
+                'up': [0, -1],
+                'down': [0, 1],
+                'left': [-1, 0],
+                'right': [1, 0]
+            };
+
+            if (directions[direction]) {
+                nextDirection = directions[direction];
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!isGameRunning && e.key.startsWith('Arrow')) {
+                startGame();
+            }
+
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    nextDirection = [0, -1];
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    nextDirection = [0, 1];
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    nextDirection = [-1, 0];
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    nextDirection = [1, 0];
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    pauseGame();
+                    break;
+            }
+        });
+
+        // Draw initial screen
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('اضغط "ابدأ اللعبة" للبدء', canvas.width / 2, canvas.height / 2);
+    </script>
+</body>
+</html>
